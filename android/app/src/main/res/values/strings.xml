@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FaceRunner</string>
+    <string name="title_activity_main">FaceRunner</string>
+    <string name="package_name">com.family.facerunner</string>
+    <string name="custom_url_scheme">com.family.facerunner</string>
+</resources>

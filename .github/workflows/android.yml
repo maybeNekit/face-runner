@@ -1,0 +1,84 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Нужно для создания Release — без этого gh release create падает с 403
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Собрать debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # JDK 21, а не 17: capacitor-android компилируется с
+      # sourceCompatibility JavaVersion.VERSION_21
+      - name: JDK 21 (temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Собрать веб-часть
+        run: npm run build
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      - name: Собрать debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      # Имя с номером сборки: в списке релизов сразу видно, что откуда
+      - name: Подготовить APK
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "artifacts/FaceRunner-build-${{ github.run_number }}.apk"
+          ls -lh artifacts/
+
+      - name: Загрузить артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: FaceRunner-build-${{ github.run_number }}
+          path: artifacts/*.apk
+          if-no-files-found: error
+
+      # Release нужен, чтобы APK скачивался с телефона по прямой ссылке —
+      # artifacts качаются только залогиненным пользователем и лежат в zip
+      - name: Опубликовать Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" \
+            "artifacts/FaceRunner-build-${{ github.run_number }}.apk" \
+            --title "Сборка ${{ github.run_number }}" \
+            --latest \
+            --notes "Debug-сборка FaceRunner, коммит \`${{ github.sha }}\`.
+
+          **Установка на телефон:**
+          1. Скачайте \`.apk\` с этой страницы
+          2. Откройте скачанный файл
+          3. Android спросит разрешение на установку из этого источника — разрешите (это разово)
+          4. Установите и запустите
+
+          APK подписан отладочным ключом, Play Store не нужен."
