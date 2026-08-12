@@ -4,12 +4,53 @@
 
 Всё генерируется кодом. Фото остаётся на устройстве.
 
+## Статус
+
+Готов каркас и пайплайн доставки. Игры пока нет: на экране заглушка «Работает!» с кнопкой смены фона. Она подтверждает, что цепочка код → GitHub → APK на телефоне работает целиком.
+
 ## Стек
 
-- **Three.js** — рендер, вся геометрия процедурная
-- **WebAudio** — весь звук синтезируется, файлов нет
-- **Capacitor** — упаковка в Android APK
-- **GitHub Actions** — сборка APK
+- **Vite 8 + TypeScript 6** — сборка веб-части
+- **Three.js** — рендер, вся геометрия процедурная *(ещё не подключён)*
+- **WebAudio** — весь звук синтезируется, файлов нет *(ещё не подключён)*
+- **Capacitor 8** — упаковка в Android APK, appId `com.family.facerunner`
+- **GitHub Actions** — сборка APK и публикация в Releases
+
+## Сборка
+
+```bash
+npm run dev      # разработка в браузере
+npm run build    # сборка веб-части в dist/
+npm run sync     # build + cap sync android
+```
+
+Требуется **Node 22+** и **JDK 21**. JDK 17 не подойдёт: `capacitor-android` компилируется с `sourceCompatibility JavaVersion.VERSION_21`.
+
+### Локальная сборка APK
+
+```bash
+cd android && ./gradlew assembleDebug
+```
+
+⚠️ На этой машине в `~/.gradle/gradle.properties` глобально прописан `org.gradle.java.home` с JDK 17 (нужен другим проектам). Для этого проекта его надо перебить, иначе сборка падает с `invalid source release: 21`:
+
+```bash
+./gradlew assembleDebug -Dorg.gradle.java.home=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+```
+
+В CI этой проблемы нет — там чистый раннер.
+
+### APK на телефон
+
+Пуш в `main` запускает [android.yml](.github/workflows/android.yml): сборка debug APK, публикация в Release с тегом `build-<номер>`. Скачать с телефона: **[Releases](https://github.com/maybeNekit/face-runner/releases)**.
+
+APK подписан отладочным ключом — ставится сайдлоадом, Play Store не нужен.
+
+### Полноэкранный режим
+
+Ландшафт и скрытие системных панелей заданы нативно: `sensorLandscape` в [AndroidManifest.xml](android/app/src/main/AndroidManifest.xml) и immersive-режим через `WindowInsetsControllerCompat` в [MainActivity.java](android/app/src/main/java/com/family/facerunner/MainActivity.java). На targetSdk 36 старые флаги (`android:windowFullscreen`, `SYSTEM_UI_FLAG_*`) не работают — только этот путь.
+
+Папка `android/` коммитится в репозиторий: без неё `cap sync` в CI не найдёт проект.
 
 ## Правила проекта
 
