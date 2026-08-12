@@ -1,35 +1,135 @@
 import './style.css'
+import { App } from '@capacitor/app'
+import { clearFace, loadFace, saveFace } from './face/face-store'
+import { renderCropScreen } from './screens/crop'
+import { renderMenuScreen } from './screens/menu'
+import { renderWelcomeScreen } from './screens/welcome'
 
-// Проверка сквозного пайплайна: код → GitHub → APK на телефоне.
-// Игры здесь пока нет — только доказательство, что сборка доезжает до устройства.
+// Роутер экранов создания персонажа.
+//
+// ПРИВАТНОСТЬ (правило проекта №3): фото ребёнка живёт только в памяти
+// вкладки и в локальном хранилище. Во всём приложении нет ни одного
+// сетевого вызова — ни fetch, ни XHR, ни аналитики.
 
-const COLORS = [
-  '#000000',
-  '#1b3a5c',
-  '#0f5132',
-  '#5c1b3a',
-  '#5c4a1b',
-  '#3a1b5c',
-] as const
+const root = document.querySelector<HTMLDivElement>('#app')!
 
-const app = document.querySelector<HTMLDivElement>('#app')!
+/** Снятие слушателей текущего экрана перед показом следующего. */
+let disposeCurrent: (() => void) | null = null
 
-app.innerHTML = `
-  <h1 class="title">Работает!</h1>
-  <button class="button" type="button" id="colorButton">Цвет</button>
-`
+/** Сохранённое лицо, если оно уже есть на устройстве. */
+let savedFace: string | null = null
 
-const button = app.querySelector<HTMLButtonElement>('#colorButton')!
+/**
+ * Куда ведёт системная кнопка «назад» с текущего экрана.
+ *
+ * Без этого Capacitor закрывает приложение на первом же «назад»: у SPA нет
+ * истории, и Activity просто завершается. С экрана обрезки это означало бы
+ * потерю несохранённого фото, а для ребёнка — «игра сама выключилась».
+ */
+let handleBack: () => void = () => {
+  void App.exitApp()
+}
 
-let index = 0
+function mount(render: (host: HTMLElement) => () => void): void {
+  disposeCurrent?.()
+  disposeCurrent = render(root)
+}
 
-button.addEventListener('click', () => {
-  index = (index + 1) % COLORS.length
-  app.style.backgroundColor = COLORS[index]
+function showWelcome(): void {
+  // С экрана фото «назад» уводит в меню, если лицо уже есть.
+  // Если лица нет, это самый первый экран — выход из приложения ожидаем.
+  handleBack = () => {
+    if (savedFace) showMenu(savedFace)
+    else void App.exitApp()
+  }
 
-  // Тактильный отклик — часть правила «juice».
-  // На desktop-браузерах vibrate отсутствует, поэтому проверяем наличие.
-  navigator.vibrate?.(15)
-})
+  mount((host) =>
+    renderWelcomeScreen(host, {
+      onPhoto: showCrop,
+      // Кнопка «назад» появляется, только когда есть куда вернуться.
+      // На первом запуске меню ещё не существует.
+      onBack: savedFace ? () => showMenu(savedFace as string) : undefined,
+    }),
+  )
+}
 
-app.style.backgroundColor = COLORS[0]
+function showCrop(photoDataUrl: string): void {
+  // «Назад» с обрезки — то же самое, что «Ещё раз»: возврат к съёмке,
+  // а не выход из приложения с потерей кадра.
+  handleBack = showWelcome
+
+  mount((host) =>
+    renderCropScreen(host, {
+      photoDataUrl,
+      onRetake: showWelcome,
+      onConfirm: (faceDataUrl) => void persistFace(faceDataUrl),
+    }),
+  )
+}
+
+function showMenu(faceDataUrl: string): void {
+  handleBack = () => void App.exitApp()
+
+  mount((host) =>
+    renderMenuScreen(host, {
+      faceDataUrl,
+      onNewFace: showWelcome,
+      onDeleteFace: () => void removeFace(),
+    }),
+  )
+}
+
+async function persistFace(faceDataUrl: string): Promise<void> {
+  savedFace = faceDataUrl
+  try {
+    await saveFace(faceDataUrl)
+  } catch {
+    // Не сохранилось — лицо всё равно показываем, чтобы ребёнок не упёрся
+    // в непонятную ошибку. Потеряется только между запусками.
+  }
+  showMenu(faceDataUrl)
+}
+
+async function removeFace(): Promise<void> {
+  savedFace = null
+  try {
+    await clearFace()
+  } catch {
+    // Хранилище недоступно — из интерфейса лицо всё равно убираем.
+  }
+  showWelcome()
+}
+
+async function start(): Promise<void> {
+  // На вебе слушатель просто никогда не сработает — плагин это допускает.
+  void App.addListener('backButton', () => {
+    handleBack()
+  })
+
+  try {
+    savedFace = await loadFace()
+  } catch {
+    savedFace = null
+  }
+
+  if (savedFace) {
+    showMenu(savedFace)
+  } else {
+    showWelcome()
+  }
+}
+
+void start()
+
+// Отладочная ручка для проверки экранов в браузере без выбора файла руками.
+// import.meta.env.DEV ложно в продакшене, и весь блок вырезается из бандла —
+// в APK этого кода нет.
+if (import.meta.env.DEV) {
+  Object.assign(window, {
+    __faceRunnerDev: {
+      welcome: showWelcome,
+      crop: showCrop,
+      menu: showMenu,
+    },
+  })
+}

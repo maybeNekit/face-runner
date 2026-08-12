@@ -21,50 +21,384 @@ body {
   /* dvh учитывает появление/скрытие системных панелей, vh — нет */
   width: 100vw;
   height: 100dvh;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #fff;
+}
+
+/* ---------- Общий каркас экрана ---------- */
+
+.screen {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6vh;
-  /* safe-area — чтобы вырез камеры не срезал надпись в ландшафте */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
-  box-sizing: border-box;
-  font-family: system-ui, -apple-system, sans-serif;
-  transition: background-color 220ms ease;
+  gap: 18px;
+  /* safe-area — вырез камеры в ландшафте не должен срезать кнопки */
+  padding: calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 18px)
+    calc(env(safe-area-inset-bottom) + 14px) calc(env(safe-area-inset-left) + 18px);
+  /* Не чистый чёрный: ребёнок читает чёрный экран как «ничего не загрузилось»,
+     а не как дизайн. Тёплый тёмный градиент оставляет контраст текста. */
+  background: radial-gradient(120% 120% at 50% 0%, #2c2350 0%, #171a2e 55%, #0e1020 100%);
 }
 
-.title {
+/* Экран обрезки рисует фон сам на канвасе */
+.screen--crop {
+  background: none;
+}
+
+.screen__title {
   margin: 0;
-  font-size: clamp(48px, 14vh, 140px);
+  /* Ограничение по ширине обязательно: только с vh длинное «Сфотографируй»
+     в портретной ориентации вылезало за края экрана. */
+  font-size: min(clamp(28px, 7.5vh, 52px), 9vw);
   font-weight: 900;
-  letter-spacing: 0.02em;
-  color: #fff;
+  line-height: 1.1;
   text-align: center;
-  /* обводка держит контраст на любом цвете фона */
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+  overflow-wrap: break-word;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
-/* Кнопка заведомо больше 64px — правило kid-ux-checker */
+.screen__title--small {
+  font-size: min(clamp(24px, 5.5vh, 38px), 8vw);
+}
+
+/* Минимум 18px — мельче ребёнок не прочитает */
+.screen__note {
+  margin: 0;
+  min-height: 24px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #cfd6e4;
+  text-align: center;
+}
+
+/* ---------- Кнопки ---------- */
+
+/* Базовый размер заметно выше требуемых 64px: пальцы у ребёнка
+   неточные, а промах не должен запускать не то. */
 .button {
-  min-width: 260px;
-  min-height: 88px;
-  padding: 0 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  box-sizing: border-box;
+  min-height: 78px;
+  min-width: 78px;
+  padding: 12px 30px;
   font-family: inherit;
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   color: #10121a;
   background: #ffd93d;
   border: none;
-  border-radius: 44px;
-  box-shadow: 0 8px 0 #c9a300, 0 12px 28px rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  box-shadow: 0 7px 0 #c9a300, 0 10px 24px rgba(0, 0, 0, 0.42);
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 90ms ease, box-shadow 90ms ease;
+  transition: transform 90ms ease, box-shadow 90ms ease, opacity 150ms ease;
 }
 
-/* Мгновенный визуальный отклик на нажатие — кнопка «проваливается» */
-.button:active {
-  transform: translateY(6px);
-  box-shadow: 0 2px 0 #c9a300, 0 6px 16px rgba(0, 0, 0, 0.45);
+/* Мгновенный визуальный отклик: кнопка «проваливается» под пальцем */
+.button:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow: 0 2px 0 #c9a300, 0 5px 14px rgba(0, 0, 0, 0.42);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button .icon {
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+/* Главная кнопка экрана — заведомо самая крупная цель */
+.button--huge {
+  min-height: 116px;
+  padding: 14px 46px;
+  font-size: 34px;
+}
+
+.button--huge .icon {
+  width: 58px;
+  height: 58px;
+}
+
+.button--primary {
+  color: #10231a;
+  background: #7bd389;
+  box-shadow: 0 7px 0 #4a9e58, 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+.button--primary:active:not(:disabled) {
+  box-shadow: 0 2px 0 #4a9e58, 0 5px 14px rgba(0, 0, 0, 0.42);
+}
+
+/* Светлее исходного #46506b: на тёмном фоне та кнопка почти не читалась
+   как кнопка, особенно на солнце. */
+.button--secondary {
+  color: #ffffff;
+  background: #5b6791;
+  box-shadow: 0 7px 0 #3a4364, 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+.button--secondary:active:not(:disabled) {
+  box-shadow: 0 2px 0 #3a4364, 0 5px 14px rgba(0, 0, 0, 0.42);
+}
+
+.button--danger {
+  color: #2a0f0f;
+  background: #ff8f8f;
+  box-shadow: 0 6px 0 #c25c5c, 0 8px 18px rgba(0, 0, 0, 0.42);
+}
+
+.button--danger:active:not(:disabled) {
+  box-shadow: 0 2px 0 #c25c5c, 0 4px 12px rgba(0, 0, 0, 0.42);
+}
+
+/* Даже «маленькая» кнопка выше требуемых 64px */
+.button--small {
+  min-height: 68px;
+  min-width: 96px;
+  padding: 10px 26px;
+  font-size: 22px;
+}
+
+/* Выглядит как ссылка, но зона нажатия всё равно крупная */
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: 8px 24px;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: #98a3ba;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.link-button:active {
+  color: #ffffff;
+}
+
+/* Выход есть с каждого экрана и всегда в одном и том же месте */
+.back-button {
+  position: absolute;
+  /* 26px, а не 10: у самого края Android перехватывает тап как системный
+     жест «назад», и кнопка через раз не срабатывала бы. */
+  top: calc(env(safe-area-inset-top) + 14px);
+  left: calc(env(safe-area-inset-left) + 26px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.back-button:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- Экран обрезки ---------- */
+
+.screen--crop {
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 0;
+}
+
+.crop__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* none, а не manipulation: жесты обрабатывает канвас, браузер не должен
+     перехватывать их под скролл и зум страницы */
+  touch-action: none;
+}
+
+.crop__bottom {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.crop__zoom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+/* Кнопки «+» и «−»: щипок двумя пальцами ребёнку 6 лет даётся плохо,
+   нужен путь в один тап. */
+.round-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  color: #10121a;
+  background: #ffd93d;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 5px 0 #c9a300, 0 8px 18px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 90ms ease, box-shadow 90ms ease, opacity 150ms ease;
+}
+
+.round-button:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #c9a300, 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.round-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.crop__hint {
+  margin: 0;
+  min-width: 12ch;
+  font-size: 19px;
+  font-weight: 600;
+  color: #cfd6e4;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.crop__buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---------- Меню ---------- */
+
+.menu__face {
+  position: relative;
+  flex: none;
+  width: clamp(120px, 26vh, 190px);
+  height: clamp(120px, 26vh, 190px);
+}
+
+/* Весёлая рамка из тех же цветов, что и на экране обрезки.
+   Рисуется градиентом, картинки не требуется. */
+.menu__face-ring {
+  position: absolute;
+  inset: -11px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #ff5d8f,
+    #ffd93d,
+    #4ecdc4,
+    #a06cd5,
+    #7bd389,
+    #ff9f45,
+    #ff5d8f
+  );
+  animation: menu-ring-spin 14s linear infinite;
+}
+
+@keyframes menu-ring-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu__face-ring {
+    animation: none;
+  }
+}
+
+.menu__face-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #10121a;
+}
+
+.menu__controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.menu__danger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 30px между «Оставить» и «Убрать»: 12px — это минимум чек-листа,
+   и его мало там, где промах стирает фото без отмены. */
+.menu__confirm-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.menu__confirm-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffd0d0;
+  text-align: center;
+}
+
+/* В ландшафте на телефоне по вертикали тесно — раскладываем меню в строку,
+   иначе кнопки уезжают за нижний край. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .screen--menu {
+    flex-direction: row;
+    gap: 28px;
+  }
+
+  .screen--welcome {
+    gap: 12px;
+  }
 }

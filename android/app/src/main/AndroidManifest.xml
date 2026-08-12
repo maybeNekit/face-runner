@@ -39,4 +39,22 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Съёмка лица. Плагин Camera сам объявляет только <queries>,
+         разрешения должны быть здесь. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Fallback на галерею. С Android 13 доступ к картинкам выдаётся
+         отдельным разрешением, до неё — общим чтением хранилища. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Камера желательна, но не обязательна: без неё работает выбор
+         из галереи, поэтому приложение не должно исчезать из списка
+         совместимых на устройствах без камеры. -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 </manifest>
