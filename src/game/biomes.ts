@@ -140,7 +140,9 @@ export const BIOMES: Biome[] = [
     skyTop: 0x05020f,
     sky: 0x140b33,
     ground: 0x231452,
-    road: 0x33246b,
+    // Светлее земли: при 0x33246b контраст с землёй был 1.24 —
+    // край дороги держался на одном бордюре.
+    road: 0x452f96,
     curb: 0x4ecdc4,
     hemiSky: 0xbba8ff,
     hemiGround: 0x2a1b5e,

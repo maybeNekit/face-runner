@@ -24,6 +24,7 @@ import {
   FOV_CRASH_KICK,
   FOV_SPEED_GAIN,
   OBSTACLE_START_TIME,
+  MIRROR_DURATION,
   POWERUP_DURATION,
   REACTION_RAMP_TAU,
   REACTION_TIME_MIN,
@@ -46,7 +47,7 @@ import { createRoad } from './road'
 import { createEasterEgg } from './easter-egg'
 import { createSky } from './sky'
 import { BIOMES, biomeAt } from './biomes'
-import { MOD_NONE, isMirrored } from './modifiers'
+import { MOD_MIRROR, MOD_NONE, isMirrored } from './modifiers'
 import type { GameAction } from './input'
 import {
   setRunNoise,
@@ -382,7 +383,9 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     // параметром safeDistance в prefill. Два механизма конфликтовали —
     // счётчик metersToSpawn стоял внутри ворот и «просыпался» неактуальным,
     // из-за чего в каждом забеге была дыра в потоке препятствий на 8.4 с.
-    obstacles.update(delta, speed, reactionAt(elapsed), elapsed, !dying)
+    // Пока управление перевёрнуто, не перекрываем две дорожки сразу:
+    // ошибиться стороной и упереться в стену — слишком дорого.
+    obstacles.update(delta, speed, reactionAt(elapsed), elapsed, !dying, isMirrored(modifier))
     pickups.update(delta, dt, speed, !dying)
     powerups.update(delta, dt, !dying)
     player.update(dt, speed)
@@ -452,7 +455,8 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
       const gained = powerups.collect(player.x, player.minY, player.maxY)
       if (gained >= 0) {
         modifier = gained
-        modifierLeft = POWERUP_DURATION
+        // Зеркало живёт меньше: см. комментарий у MIRROR_DURATION.
+        modifierLeft = gained === MOD_MIRROR ? MIRROR_DURATION : POWERUP_DURATION
         player.setModifier(gained)
         soundPowerup()
         hapticCombo()

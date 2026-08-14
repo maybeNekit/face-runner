@@ -588,12 +588,16 @@ body {
 /* Влетает с отскоком каждые 100 м. Не перехватывает свайпы. */
 .announcer {
   position: absolute;
-  top: 26%;
+  /* 18%, а не 26%: горизонт лежит примерно на 37% высоты, а препятствие
+     на дистанции реакции проецируется около 42%. При 26% надпись вместе
+     с анимацией и тряской камеры заезжала ровно туда, куда ребёнку надо
+     смотреть, и тянула взгляд в самый неподходящий момент. */
+  top: 18%;
   left: 0;
   right: 0;
   z-index: 3;
   padding: 0 16px;
-  font-size: clamp(30px, 9vh, 62px);
+  font-size: clamp(26px, 7.5vh, 52px);
   font-weight: 900;
   text-align: center;
   color: #fff6a8;
@@ -619,7 +623,10 @@ body {
 
 .biome-tag {
   position: absolute;
-  top: 14%;
+  /* Вниз: ANNOUNCE_EVERY_METERS и BIOME_LENGTH кратны, поэтому каждая
+     третья веха совпадает со сменой биома — два текста подряд в центре
+     верха читались как каша. */
+  bottom: 12%;
   left: 0;
   right: 0;
   z-index: 3;
@@ -789,4 +796,22 @@ body {
   font-size: 20px;
   font-weight: 600;
   color: #cfd6e4;
+}
+
+/* Пока активно «зеркало», края экрана подсвечены его цветом: ребёнок
+   должен видеть, что управление перевёрнуто, а не узнавать об этом,
+   врезавшись. */
+.screen--game--mirrored::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 6px #a06cd5, inset 0 0 60px rgba(160, 108, 213, 0.55);
+  animation: mirror-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes mirror-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
 }

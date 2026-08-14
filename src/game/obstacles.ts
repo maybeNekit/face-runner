@@ -23,6 +23,7 @@ export interface ObstacleWorld {
     reactionTime: number,
     elapsed: number,
     spawnEnabled: boolean,
+    forceSingleLane: boolean,
   ): void
   /** Возвращает вариант смерти при столкновении или -1, если чисто. */
   hits(x: number, halfWidth: number, minY: number, maxY: number): number
@@ -107,10 +108,15 @@ export function createObstacles(): ObstacleWorld {
    * `avoidCenter` — для самой первой группы забега: первое препятствие
    * в жизни ребёнок должен просто рассмотреть и проехать мимо.
    */
-  function spawnPattern(z: number, elapsed: number, avoidCenter: boolean): void {
+  function spawnPattern(
+    z: number,
+    elapsed: number,
+    avoidCenter: boolean,
+    forceSingleLane = false,
+  ): void {
     if (Math.random() < PATTERN_EMPTY_CHANCE) return
 
-    const warmup = elapsed < SINGLE_LANE_UNTIL
+    const warmup = forceSingleLane || elapsed < SINGLE_LANE_UNTIL
     const blockCount = warmup || Math.random() >= DOUBLE_LANE_CHANCE ? 1 : 2
 
     if (blockCount === 1) {
@@ -133,7 +139,7 @@ export function createObstacles(): ObstacleWorld {
     let first = true
 
     while (z > SPAWN_Z) {
-      spawnPattern(z, 0, first)
+      spawnPattern(z, 0, first, false)
       first = false
       z -= gap
     }
@@ -181,6 +187,7 @@ export function createObstacles(): ObstacleWorld {
     reactionTime: number,
     elapsed: number,
     spawnEnabled: boolean,
+    forceSingleLane: boolean,
   ): void {
     for (let i = 0; i < POOL_OBSTACLES; i += 1) {
       if (!active[i]) continue
@@ -191,7 +198,7 @@ export function createObstacles(): ObstacleWorld {
     if (spawnEnabled) {
       metersToSpawn -= delta
       if (metersToSpawn <= 0) {
-        spawnPattern(SPAWN_Z, elapsed, false)
+        spawnPattern(SPAWN_Z, elapsed, false, forceSingleLane)
         // Дистанция до следующей группы считается через время на реакцию,
         // поэтому на любой скорости у ребёнка одинаковый запас времени.
         metersToSpawn = speed * reactionTime
