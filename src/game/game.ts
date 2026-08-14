@@ -44,6 +44,7 @@ import { createPickups } from './pickups'
 import { createPowerups } from './powerups'
 import { createPlayer } from './player'
 import { createRoad } from './road'
+import { createChaser } from './chaser'
 import { createEasterEgg } from './easter-egg'
 import { createSky } from './sky'
 import { BIOMES, biomeAt } from './biomes'
@@ -202,6 +203,13 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   sun.position.set(6, 12, 4)
   scene.add(sun)
 
+  // Контровой свет сзади-сверху: отделяет героя и Черемшу от фона, из-за
+  // чего силуэты читаются, а картинка перестаёт быть плоской. Один
+  // источник без теней — на кадр не влияет.
+  const rim = new THREE.DirectionalLight(0xfff2d0, 0.55)
+  rim.position.set(-5, 7, -9)
+  scene.add(rim)
+
   // ---- Мир ----
   const road = createRoad()
   const obstacles = createObstacles()
@@ -209,6 +217,7 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   const powerups = createPowerups()
   const effects = createEffects()
   const easterEgg = createEasterEgg()
+  const chaser = createChaser()
   const recordBanner = createRecordBanner()
 
   scene.add(road.group)
@@ -217,6 +226,7 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   scene.add(powerups.group)
   scene.add(effects.group)
   scene.add(easterEgg.group)
+  scene.add(chaser.group)
   scene.add(recordBanner)
 
   // ---- Биомы ----
@@ -389,6 +399,7 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     pickups.update(delta, dt, speed, !dying)
     powerups.update(delta, dt, !dying)
     player.update(dt, speed)
+    chaser.update(dt, player.x, speed, dying)
     effects.update(dt, delta, progress)
     setRunNoise(progress, !dying)
 
@@ -604,6 +615,7 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     powerups.reset()
     effects.reset()
     player.reset()
+    chaser.reset()
     easterEgg.reset()
     recordBanner.visible = false
 

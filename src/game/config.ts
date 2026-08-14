@@ -92,8 +92,8 @@ export const COIN_SQUASH = 1.06
 
 // ---------- Камера ----------
 
-export const CAMERA_HEIGHT = 3.4
-export const CAMERA_DISTANCE = 6.8
+export const CAMERA_HEIGHT = 3.9
+export const CAMERA_DISTANCE = 9.6
 export const CAMERA_LOOK_AHEAD = 7
 /** Скорость догона камеры. Жёсткая привязка убивает ощущение скорости. */
 export const CAMERA_LAG = 9
@@ -280,3 +280,26 @@ export const EASTER_EGG_METERS = 500
 export const BIOME_LENGTH = 300
 /** Плавный переход палитры, секунд. Резкая смена била бы по глазам. */
 export const BIOME_TRANSITION = 2
+
+// ---------- Черемша (погоня) ----------
+
+/**
+ * Где бежит Черемша.
+ *
+ * Камера стоит в CAMERA_DISTANCE позади игрока, поэтому преследователь
+ * обязан попадать между камерой и героем — иначе он окажется ровно за
+ * объективом и его не будет видно вообще.
+ */
+export const CHASER_Z = 5.0
+/** Частота припрыгивания. */
+export const CHASER_BOB_SPEED = 7.5
+/** Насколько лениво Черемша повторяет перестроения героя. */
+export const CHASER_LANE_LAG = 3.2
+/**
+ * Насколько Черемша смещена вбок от героя.
+ *
+ * Она бежит между камерой и игроком, поэтому строго за спиной полностью
+ * закрывала бы персонажа — а лицо ребёнка и есть смысл игры. Смещение
+ * чуть больше её полуширины: погоня читается, лицо видно.
+ */
+export const CHASER_SIDE_OFFSET = 2.35
