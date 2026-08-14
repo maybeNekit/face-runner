@@ -17,7 +17,9 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
-        <!-- API 31+ рисует сплэш сам и android:background игнорирует -->
-        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <!-- API 31+ рисует сплэш сам и android:background игнорирует.
+             Цвет обязан совпадать с фоном картинки, иначе вокруг неё
+             видна рамка чужого цвета. -->
+        <item name="windowSplashScreenBackground">@color/splashBackground</item>
     </style>
 </resources>

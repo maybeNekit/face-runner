@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Фон splash-экрана. Должен совпадать с фоном сгенерированной
+         картинки, иначе на API 31+ вокруг неё видна рамка другого цвета. -->
+    <color name="splashBackground">#ffd93d</color>
+</resources>

@@ -54,6 +54,19 @@ export const iconNo = svg(`
   <path d="M18 18 L46 46 M46 18 L18 46"/>
 `)
 
+/** Динамик со звуковыми волнами — узнаётся ребёнком без подписи. */
+export const iconSoundOn = svg(`
+  <path d="M14 25 H24 L36 14 V50 L24 39 H14 Z" fill="currentColor"/>
+  <path d="M44 24 Q50 32 44 40"/>
+  <path d="M52 18 Q61 32 52 46"/>
+`)
+
+/** Тот же динамик, но перечёркнутый. */
+export const iconSoundOff = svg(`
+  <path d="M14 25 H24 L36 14 V50 L24 39 H14 Z" fill="currentColor"/>
+  <path d="M45 25 L59 39 M59 25 L45 39"/>
+`)
+
 /** Улыбающееся лицо — «новое лицо». Улыбка, а не нейтральный овал: тон добрый. */
 export const iconFace = svg(`
   <circle cx="32" cy="32" r="25"/>

@@ -4,6 +4,49 @@
 
 let ctx: AudioContext | undefined
 let audioBroken = false
+let master: GainNode | undefined
+let muted = false
+
+/**
+ * Общий на всё приложение AudioContext.
+ *
+ * Игровые звуки берут именно его: браузеры ограничивают число живых
+ * AudioContext на страницу, и второй может просто не открыться.
+ */
+export function getAudioContext(): AudioContext | undefined {
+  return getContext()
+}
+
+/**
+ * Общий регулятор громкости.
+ *
+ * ВСЁ звучащее в игре подключается сюда, а не напрямую к destination:
+ * иначе выключить звук можно было бы только расставив проверки по каждому
+ * вызову, и непрерывный шум бега всё равно остался бы играть.
+ */
+export function getMasterGain(): GainNode | undefined {
+  const audio = getContext()
+  if (!audio) return undefined
+
+  if (!master) {
+    master = audio.createGain()
+    master.gain.value = muted ? 0 : 1
+    master.connect(audio.destination)
+  }
+  return master
+}
+
+export function isMuted(): boolean {
+  return muted
+}
+
+export function setMuted(value: boolean): void {
+  muted = value
+  const gain = getMasterGain()
+  if (!gain || !ctx) return
+  // Не рубим мгновенно: резкий обрыв даёт щелчок в динамике.
+  gain.gain.setTargetAtTime(value ? 0 : 1, ctx.currentTime, 0.02)
+}
 
 function getContext(): AudioContext | undefined {
   if (audioBroken) return undefined
@@ -47,7 +90,7 @@ function tone(
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
 
   osc.connect(gain)
-  gain.connect(audio.destination)
+  gain.connect(getMasterGain() ?? audio.destination)
   osc.start(start)
   osc.stop(start + duration + 0.02)
 }

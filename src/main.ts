@@ -2,8 +2,11 @@ import './style.css'
 import { App } from '@capacitor/app'
 import { clearFace, loadFace, saveFace } from './face/face-store'
 import { renderCropScreen } from './screens/crop'
+import { renderGameScreen } from './screens/game'
 import { renderMenuScreen } from './screens/menu'
 import { renderWelcomeScreen } from './screens/welcome'
+import { installCrashScreen } from './ui/crash-screen'
+import { loadMuted } from './ui/sound-settings'
 
 // Роутер экранов создания персонажа.
 //
@@ -73,8 +76,24 @@ function showMenu(faceDataUrl: string): void {
   mount((host) =>
     renderMenuScreen(host, {
       faceDataUrl,
+      onPlay: () => showGame(faceDataUrl),
       onNewFace: showWelcome,
       onDeleteFace: () => void removeFace(),
+    }),
+  )
+}
+
+function showGame(faceDataUrl: string): void {
+  mount((host) =>
+    renderGameScreen(host, {
+      faceDataUrl,
+      onExit: () => showMenu(faceDataUrl),
+      // Что делает «назад» внутри игры, решает сам экран: во время забега
+      // это пауза, а не выход. Выкидывать ребёнка из забега на рекорде —
+      // худшее, что может сделать системная кнопка.
+      bindBack: (handler) => {
+        handleBack = handler
+      },
     }),
   )
 }
@@ -101,10 +120,17 @@ async function removeFace(): Promise<void> {
 }
 
 async function start(): Promise<void> {
+  // Вместо белого экрана при падении — понятная заглушка с кнопкой.
+  installCrashScreen()
+
   // На вебе слушатель просто никогда не сработает — плагин это допускает.
   void App.addListener('backButton', () => {
     handleBack()
   })
+
+  // Выбор «со звуком / без звука» восстанавливаем до первого экрана,
+  // иначе первый же тап прозвучит вопреки настройке.
+  await loadMuted()
 
   try {
     savedFace = await loadFace()
@@ -130,6 +156,7 @@ if (import.meta.env.DEV) {
       welcome: showWelcome,
       crop: showCrop,
       menu: showMenu,
+      game: showGame,
     },
   })
 }

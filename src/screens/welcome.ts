@@ -35,6 +35,8 @@ export function renderWelcomeScreen(root: HTMLElement, options: WelcomeOptions):
   const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('button'))
 
   let busy = false
+  /** Со второго отказа подряд подсказка адресуется уже взрослому. */
+  let failures = 0
 
   function setBusy(value: boolean): void {
     busy = value
@@ -62,8 +64,17 @@ export function renderWelcomeScreen(root: HTMLElement, options: WelcomeOptions):
       }
 
       if (outcome.status === 'unavailable') {
+        // Камеры нет, разрешение не дали или галерея тоже не открылась.
+        // Ребёнку нельзя оставлять пустоту: объясняем словами, которые он
+        // поймёт, и оставляем обе большие кнопки на месте — они и есть
+        // «попробовать ещё раз».
         gentleFailFeedback()
-        showNote('Не получилось. Попробуй ещё раз 🙂')
+        showNote(
+          failures > 0
+            ? 'Камера не открывается. Попроси взрослого — нужно разрешить камеру 🙂'
+            : 'Не получилось. Нажми большую кнопку ещё разок 🙂',
+        )
+        failures += 1
       }
       // 'cancelled' — ребёнок передумал, это нормально и молчит.
     } finally {
