@@ -23,8 +23,12 @@ import {
   FOV_BASE,
   FOV_CRASH_KICK,
   FOV_SPEED_GAIN,
+  CHASER_SCALE,
+  INTRO_CAMERA_DISTANCE,
+  INTRO_CAMERA_HEIGHT,
+  INTRO_DURATION,
+  INTRO_NOTICE_AT,
   OBSTACLE_START_TIME,
-  MIRROR_DURATION,
   POWERUP_DURATION,
   REACTION_RAMP_TAU,
   REACTION_TIME_MIN,
@@ -46,9 +50,10 @@ import { createPlayer } from './player'
 import { createRoad } from './road'
 import { createChaser } from './chaser'
 import { createEasterEgg } from './easter-egg'
+import { createPenalty } from './penalty'
 import { createSky } from './sky'
 import { BIOMES, biomeAt } from './biomes'
-import { MOD_MIRROR, MOD_NONE, isMirrored } from './modifiers'
+import { MOD_KOLOBOK, MOD_NONE, MOD_RONALDO } from './modifiers'
 import type { GameAction } from './input'
 import {
   setRunNoise,
@@ -94,6 +99,14 @@ export interface GameCallbacks {
   onBiome(name: string): void
   /** Пасхалка на 500 метрах. */
   onEasterEgg(): void
+  /** Черемша заметила жест — момент завязки погони. */
+  onIntroNotice(): void
+  /** Вступление кончилось, побежали. */
+  onIntroDone(): void
+  /** Начался пенальти. */
+  onPenaltyStart(): void
+  /** Пенальти закончился: забил или нет. */
+  onPenalty(scored: boolean): void
 }
 
 export interface Game {
@@ -218,6 +231,8 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   const effects = createEffects()
   const easterEgg = createEasterEgg()
   const chaser = createChaser()
+  chaser.group.scale.setScalar(CHASER_SCALE)
+  const penalty = createPenalty()
   const recordBanner = createRecordBanner()
 
   scene.add(road.group)
@@ -227,6 +242,7 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   scene.add(effects.group)
   scene.add(easterEgg.group)
   scene.add(chaser.group)
+  scene.add(penalty.group)
   scene.add(recordBanner)
 
   // ---- Биомы ----
@@ -289,6 +305,11 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   let recordPassed = false
   let dying = false
   let paused = false
+  /** Вступление: герой кривляется, Черемша закипает. */
+  let introLeft = 0
+  let noticed = false
+  /** Идёт мини-игра пенальти — мир стоит, управление уходит туда. */
+  let inPenalty = false
   let deathTimer = 0
   let worldScale = 1
 
@@ -372,6 +393,60 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   }
 
   function step(dt: number): void {
+    // ---- Вступление ----
+    if (introLeft > 0) {
+      introLeft -= dt
+      const t = INTRO_DURATION - introLeft
+      player.setIntro(true, t)
+
+      // Черемша замечает жест и вскипает.
+      if (!noticed && t >= INTRO_NOTICE_AT) {
+        noticed = true
+        soundBlocked()
+        effects.addShake(0.3)
+        callbacks.onIntroNotice()
+      }
+
+      chaser.updateIntro(dt, t, noticed)
+      if (introLeft <= 0) {
+        player.setIntro(false, 0)
+        callbacks.onIntroDone()
+      }
+      callbacks.onTick(0, 0, 0)
+      return
+    }
+
+    // ---- Пенальти ----
+    if (inPenalty) {
+      // Герой отбегает к точке удара. Не телепортируем: видно, как он
+      // сходит с трассы, и ребёнок понимает, что происходит.
+      const toX = penalty.playerX
+      player.group.position.x += (toX - player.group.position.x) * Math.min(1, dt * 3.5)
+      player.group.position.z += (penalty.playerZ - player.group.position.z) * Math.min(1, dt * 3.5)
+
+      if (penalty.update(dt)) {
+        inPenalty = false
+        if (penalty.scored) {
+          coins += 200
+          soundRecord()
+          callbacks.onPenalty(true)
+        } else {
+          // Промах заканчивает забег — так просил владелец игры.
+          callbacks.onPenalty(false)
+          crash(0)
+        }
+        modifier = MOD_NONE
+        modifierLeft = 0
+        player.setModifier(MOD_NONE)
+        callbacks.onModifier(MOD_NONE)
+        // Возвращаем героя на трассу.
+        player.group.position.z = 0
+      }
+      player.update(dt, 6)
+      callbacks.onTick(Math.floor(distance), coins, combo)
+      return
+    }
+
     elapsed += dt
 
     const speed = dying ? SPEED_START * worldScale : speedAt(elapsed)
@@ -395,7 +470,7 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     // из-за чего в каждом забеге была дыра в потоке препятствий на 8.4 с.
     // Пока управление перевёрнуто, не перекрываем две дорожки сразу:
     // ошибиться стороной и упереться в стену — слишком дорого.
-    obstacles.update(delta, speed, reactionAt(elapsed), elapsed, !dying, isMirrored(modifier))
+    obstacles.update(delta, speed, reactionAt(elapsed), elapsed, !dying, false)
     pickups.update(delta, dt, speed, !dying)
     powerups.update(delta, dt, !dying)
     player.update(dt, speed)
@@ -465,9 +540,19 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
       // ---- Бонус ----
       const gained = powerups.collect(player.x, player.minY, player.maxY)
       if (gained >= 0) {
+        if (gained === MOD_RONALDO) {
+          // Роналду не длится по таймеру: он сразу уводит на пенальти.
+          inPenalty = true
+          penalty.start()
+          player.setModifier(MOD_NONE)
+          soundPowerup()
+          callbacks.onModifier(MOD_RONALDO)
+          callbacks.onPenaltyStart()
+          return
+        }
+
         modifier = gained
-        // Зеркало живёт меньше: см. комментарий у MIRROR_DURATION.
-        modifierLeft = gained === MOD_MIRROR ? MIRROR_DURATION : POWERUP_DURATION
+        modifierLeft = POWERUP_DURATION
         player.setModifier(gained)
         soundPowerup()
         hapticCombo()
@@ -478,7 +563,15 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
       // ---- Столкновение ----
       const hit = obstacles.hits(player.x, player.halfWidth, player.minY, player.maxY)
       if (hit >= 0) {
-        crash(hit)
+        if (modifier === MOD_KOLOBOK) {
+          // Колобок катится сквозь всё: препятствие разлетается, а не бьёт.
+          obstacles.smash(player.x, player.halfWidth)
+          soundCrash()
+          effects.addShake(0.22)
+          effects.emitCrash(player.x, 0.7, 0, 14)
+        } else {
+          crash(hit)
+        }
       }
 
       // ---- Каждые сто метров — похвала ----
@@ -534,12 +627,19 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
 
     // Камера тянется за игроком с отставанием — жёсткая привязка убивает
     // ощущение манёвра при смене дорожки.
-    const targetX = player.x * CAMERA_FOLLOW
-    camera.position.x += (targetX - camera.position.x) * Math.min(1, dt * CAMERA_LAG)
-    camera.position.y = CAMERA_HEIGHT
-    camera.position.z = CAMERA_DISTANCE
+    // Во вступлении камера подъезжает вплотную: лицо должно быть крупно.
+    // На пенальти — уезжает к воротам вместе с героем.
+    const introT = introLeft > 0 ? Math.min(introLeft / INTRO_DURATION, 1) : 0
+    const height = CAMERA_HEIGHT + (INTRO_CAMERA_HEIGHT - CAMERA_HEIGHT) * introT
+    const distance2 = CAMERA_DISTANCE + (INTRO_CAMERA_DISTANCE - CAMERA_DISTANCE) * introT
+    const focusX = inPenalty ? penalty.playerX : player.x
 
-    lookTarget.set(player.x * CAMERA_LOOK_FOLLOW, 1.05, -CAMERA_LOOK_AHEAD)
+    const targetX = focusX * CAMERA_FOLLOW
+    camera.position.x += (targetX - camera.position.x) * Math.min(1, dt * CAMERA_LAG)
+    camera.position.y = height
+    camera.position.z = distance2
+
+    lookTarget.set(focusX * CAMERA_LOOK_FOLLOW, 1.05, -CAMERA_LOOK_AHEAD)
     camera.lookAt(lookTarget)
 
     // Тряска — доворот ПОСЛЕ lookAt. Сдвигом её делать нельзя: lookAt каждый
@@ -616,7 +716,12 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     effects.reset()
     player.reset()
     chaser.reset()
+    penalty.reset()
     easterEgg.reset()
+    introLeft = INTRO_DURATION
+    noticed = false
+    inPenalty = false
+    player.setIntro(true, 0)
     recordBanner.visible = false
 
     // Забег всегда начинается с первого биома, без переливания.
@@ -689,11 +794,18 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
   function handleAction(action: GameAction): void {
     if (!running || dying) return
 
-    // «Зеркало» меняет местами лево и право — путаница есть, тошноты нет.
-    const flip = isMirrored(modifier) ? -1 : 1
+    // Во время пенальти те же жесты означают направление удара.
+    if (inPenalty) {
+      if (action === 'left') penalty.shoot(-1)
+      else if (action === 'right') penalty.shoot(1)
+      else penalty.shoot(0)
+      return
+    }
 
-    if (action === 'left') player.requestLane(flip === 1 ? -1 : 1)
-    else if (action === 'right') player.requestLane(flip === 1 ? 1 : -1)
+    if (introLeft > 0) return
+
+    if (action === 'left') player.requestLane(-1)
+    else if (action === 'right') player.requestLane(1)
     else if (action === 'jump') player.requestJump()
     else if (action === 'slide') player.requestSlide()
   }

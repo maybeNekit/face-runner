@@ -27,6 +27,8 @@ export interface ObstacleWorld {
   ): void
   /** Возвращает вариант смерти при столкновении или -1, если чисто. */
   hits(x: number, halfWidth: number, minY: number, maxY: number): number
+  /** Сносит препятствия рядом с игроком — режим колобка. */
+  smash(x: number, halfWidth: number): void
   /** Заполняет трассу до старта, чтобы забег не начинался с пустоты. */
   prefill(speed: number, reactionTime: number, safeDistance: number): void
   reset(): void
@@ -225,11 +227,22 @@ export function createObstacles(): ObstacleWorld {
     return -1
   }
 
+  function smash(x: number, halfWidth: number): void {
+    for (let i = 0; i < POOL_OBSTACLES; i += 1) {
+      if (!active[i]) continue
+      const def = OBSTACLE_DEFS[kind[i]]
+      if (Math.abs(posZ[i]) > def.depth / 2 + 0.6) continue
+      if (Math.abs(LANE_X[lane[i]] - x) > def.width / 2 + halfWidth) continue
+      active[i] = 0
+    }
+    writeMatrices()
+  }
+
   function reset(): void {
     active.fill(0)
     metersToSpawn = 0
     writeMatrices()
   }
 
-  return { group, update, hits, prefill, reset }
+  return { group, update, hits, smash, prefill, reset }
 }

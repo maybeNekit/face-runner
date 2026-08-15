@@ -124,6 +124,8 @@ function buildEar(): THREE.BufferGeometry {
 export interface Chaser {
   readonly group: THREE.Group
   update(dt: number, playerX: number, speed: number, dying: boolean): void
+  /** Поза вступления: Черемша стоит в кадре и замечает жест героя. */
+  updateIntro(dt: number, time: number, noticed: boolean): void
   reset(): void
 }
 
@@ -159,6 +161,44 @@ export function createChaser(): Chaser {
 
   let phase = 0
   let x = 0
+
+  /**
+   * Вступление: Черемша стоит сбоку от героя, сначала спокойно, потом
+   * замечает жест и вскипает — подпрыгивает, уши встают торчком.
+   * Это и есть завязка: побежали потому, что она увидела.
+   */
+  function updateIntro(dt: number, time: number, noticed: boolean): void {
+    phase += dt * (noticed ? CHASER_BOB_SPEED : 2.2)
+
+    // Стоит справа и заметно ближе к камере, чем на бегу: её должно быть
+    // хорошо видно рядом с героем.
+    group.position.set(3.1, 0, 1.4)
+    group.rotation.set(0, -0.5, 0)
+
+    if (!noticed) {
+      // Пока не заметила — мирно принюхивается.
+      const idle = Math.sin(time * 2.4) * 0.06
+      group.position.y = 0
+      body.rotation.x = idle
+      body.scale.set(1, 1, 1)
+      leftEar.rotation.z = 0.2 + idle
+      rightEar.rotation.z = -0.2 - idle
+      shadow.position.y = 0.03
+      return
+    }
+
+    // Заметила: подпрыгивает от возмущения, уши встают торчком.
+    const outrage = Math.abs(Math.sin(phase)) * 0.55
+    group.position.y = outrage
+    body.rotation.x = -0.18
+    const puff = 1 + Math.sin(phase * 2) * 0.1
+    body.scale.set(2 - puff, puff, 2 - puff)
+    leftEar.rotation.z = 0.05
+    rightEar.rotation.z = -0.05
+    leftEar.rotation.x = -0.05
+    rightEar.rotation.x = -0.05
+    shadow.position.y = -outrage + 0.03
+  }
 
   function update(dt: number, playerX: number, speed: number, dying: boolean): void {
     phase += dt * CHASER_BOB_SPEED
@@ -218,5 +258,5 @@ export function createChaser(): Chaser {
 
   reset()
 
-  return { group, update, reset }
+  return { group, update, updateIntro, reset }
 }

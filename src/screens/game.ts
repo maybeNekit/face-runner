@@ -3,7 +3,7 @@ import { createGame } from '../game/game'
 import type { Game, GameCallbacks } from '../game/game'
 import { createInput } from '../game/input'
 import { loadBestDistance, saveBestDistance } from '../game/score-store'
-import { MOD_COLOR, MOD_ICON, MOD_LABEL, MOD_MIRROR, MOD_NONE } from '../game/modifiers'
+import { MOD_COLOR, MOD_ICON, MOD_LABEL, MOD_NONE } from '../game/modifiers'
 import { iconAgain, iconFace, iconGo } from '../ui/icons'
 import { successFeedback, tapFeedback } from '../ui/feedback'
 
@@ -190,7 +190,6 @@ export function renderGameScreen(root: HTMLElement, options: GameScreenOptions):
     },
 
     onModifier(modifier) {
-      screen.classList.toggle('screen--game--mirrored', modifier === MOD_MIRROR)
       if (modifier === MOD_NONE) {
         modifierEl.hidden = true
         return
@@ -215,6 +214,22 @@ export function renderGameScreen(root: HTMLElement, options: GameScreenOptions):
 
     onEasterEgg() {
       announce('УТЁНОК! КРЯ! 🦆')
+    },
+
+    onIntroNotice() {
+      announce('ЧЕРЕМША УВИДЕЛА!')
+    },
+
+    onIntroDone() {
+      announce('БЕЖИМ!')
+    },
+
+    onPenaltyStart() {
+      announce('ПЕНАЛЬТИ! БЕЙ!')
+    },
+
+    onPenalty(scored) {
+      announce(scored ? 'ГОООЛ! ⚽' : 'ВРАТАРЬ ВЗЯЛ 😬')
     },
 
     onDeath(distance, coins, isRecord) {

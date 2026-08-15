@@ -92,8 +92,8 @@ export const COIN_SQUASH = 1.06
 
 // ---------- Камера ----------
 
-export const CAMERA_HEIGHT = 3.9
-export const CAMERA_DISTANCE = 9.6
+export const CAMERA_HEIGHT = 3.6
+export const CAMERA_DISTANCE = 7.8
 export const CAMERA_LOOK_AHEAD = 7
 /** Скорость догона камеры. Жёсткая привязка убивает ощущение скорости. */
 export const CAMERA_LAG = 9
@@ -290,7 +290,7 @@ export const BIOME_TRANSITION = 2
  * обязан попадать между камерой и героем — иначе он окажется ровно за
  * объективом и его не будет видно вообще.
  */
-export const CHASER_Z = 5.0
+export const CHASER_Z = 4.6
 /** Частота припрыгивания. */
 export const CHASER_BOB_SPEED = 7.5
 /** Насколько лениво Черемша повторяет перестроения героя. */
@@ -302,4 +302,35 @@ export const CHASER_LANE_LAG = 3.2
  * закрывала бы персонажа — а лицо ребёнка и есть смысл игры. Смещение
  * чуть больше её полуширины: погоня читается, лицо видно.
  */
-export const CHASER_SIDE_OFFSET = 2.35
+export const CHASER_SIDE_OFFSET = 2.6
+
+/** Черемша уменьшена: главное на экране — лицо ребёнка, а не преследователь. */
+export const CHASER_SCALE = 0.62
+
+// ---------- Интро: мем 67 ----------
+
+/** Сколько длится вступление, пока герой кривляется, а Черемша закипает. */
+export const INTRO_DURATION = 3.4
+/** На этой секунде Черемша замечает жест и вскипает. */
+export const INTRO_NOTICE_AT = 1.9
+/** Камера во время интро стоит ближе — лицо должно быть крупно. */
+export const INTRO_CAMERA_DISTANCE = 4.6
+export const INTRO_CAMERA_HEIGHT = 2.5
+
+// ---------- Колобок ----------
+
+/** Радиус шара, в который сворачивается герой. */
+export const KOLOBOK_RADIUS = 0.85
+/** Скорость вращения шара на бегу. */
+export const KOLOBOK_SPIN = 6.5
+
+// ---------- Пенальти (сила Роналду) ----------
+
+/** Сколько секунд даётся на удар, пока вратарь мечется. */
+export const PENALTY_AIM_TIME = 2.6
+/** Как быстро вратарь ходит вдоль ворот. */
+export const PENALTY_KEEPER_SPEED = 1.9
+/** Полёт мяча до ворот. */
+export const PENALTY_SHOT_TIME = 0.55
+/** Пауза на радость или досаду перед возвращением на трассу. */
+export const PENALTY_RESULT_TIME = 1.6

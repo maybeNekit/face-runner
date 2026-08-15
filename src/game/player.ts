@@ -25,6 +25,8 @@ import {
   JET_GRAVITY_SCALE,
   JET_JUMP_BOOST,
   JUMP_VELOCITY,
+  KOLOBOK_RADIUS,
+  KOLOBOK_SPIN,
   LANE_BLOCKED_TILT,
   LANE_CHANGE_TIME,
   LANE_COUNT,
@@ -43,7 +45,14 @@ import {
   STRETCH_JUMP,
   TINY_BODY_SCALE,
 } from './config'
-import { MOD_GIANT_HEAD, MOD_JELLY, MOD_JET_BOOTS, MOD_NONE, MOD_TINY_BODY } from './modifiers'
+import {
+  MOD_GIANT_HEAD,
+  MOD_JELLY,
+  MOD_JET_BOOTS,
+  MOD_KOLOBOK,
+  MOD_NONE,
+  MOD_TINY_BODY,
+} from './modifiers'
 import { DEATH_BOUNCE as HIT_BOUNCE, DEATH_FLIP, DEATH_SLIP, DEATH_SPLAT } from './obstacle-shapes'
 
 // Персонаж: низкополигональное тело из примитивов, на голове — лицо ребёнка.
@@ -76,6 +85,8 @@ export interface Player {
   requestLane(direction: -1 | 1): void
   celebrate(): void
   setModifier(modifier: number): void
+  /** Поза вступления: герой лицом к камере делает жест «6-7». */
+  setIntro(active: boolean, time: number): void
   update(dt: number, speed: number): void
   die(variant: number): void
   reset(): void
@@ -165,6 +176,16 @@ export function createPlayer(handlers: PlayerHandlers): Player {
   shadow.rotation.x = -Math.PI / 2
   group.add(shadow)
 
+  // Колобок: герой сворачивается в шар, на котором остаётся только лицо.
+  // Тело в этот момент прячется целиком — «мы становимся круглым».
+  const kolobok = new THREE.Mesh(
+    new THREE.SphereGeometry(KOLOBOK_RADIUS, 16, 12),
+    skinMaterial,
+  )
+  kolobok.position.y = KOLOBOK_RADIUS
+  kolobok.visible = false
+  pivot.add(kolobok)
+
   const shoeGeometry = new THREE.BoxGeometry(0.22, 0.12, 0.34)
   const leftShoe = new THREE.Mesh(shoeGeometry, shoeMaterial)
   const rightShoe = new THREE.Mesh(shoeGeometry, shoeMaterial)
@@ -205,6 +226,9 @@ export function createPlayer(handlers: PlayerHandlers): Player {
   let grimaceKind = GRIMACE_PUFF
 
   let modifier = MOD_NONE
+  let intro = false
+  let introTime = 0
+  let roll = 0
   let headScale = 1
   let bodyScale = 1
   let jelly = 0
@@ -337,6 +361,15 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     modifier = next
   }
 
+  /**
+   * Поза вступления: герой разворачивается к камере и делает жест «6-7» —
+   * обе ладони вверх и попеременно качаются. Именно это и выводит Черемшу.
+   */
+  function setIntro(active: boolean, time: number): void {
+    intro = active
+    introTime = time
+  }
+
   function die(variant: number): void {
     if (dead) return
     dead = true
@@ -406,9 +439,42 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     group.position.y = y
   }
 
+  function updateIntro(): void {
+    // Разворот к камере: лицо ребёнка должно быть видно целиком.
+    pivot.rotation.y = Math.PI
+    pivot.rotation.x = 0
+    pivot.rotation.z = 0
+    pivot.scale.set(1, 1, 1)
+
+    // Жест «6-7»: ладони вверх, качаются вразнобой.
+    const wave = introTime * 7
+    leftArm.rotation.x = -1.35
+    rightArm.rotation.x = -1.35
+    leftArm.rotation.z = 0.5
+    rightArm.rotation.z = -0.5
+    leftArm.position.set(-0.52, 1.06 + Math.sin(wave) * 0.16, 0.26)
+    rightArm.position.set(0.52, 1.06 - Math.sin(wave) * 0.16, 0.26)
+
+    // Ноги стоят, лёгкое пружинистое покачивание всем телом.
+    leftLeg.rotation.x = 0
+    rightLeg.rotation.x = 0
+    leftShoe.position.set(-0.17, 0.16, 0.1)
+    rightShoe.position.set(0.17, 0.16, 0.1)
+    headGroup.position.y = 1.52 + Math.sin(wave * 0.5) * 0.05
+    headGroup.rotation.z = Math.sin(wave * 0.5) * 0.12
+
+    group.position.y = Math.abs(Math.sin(wave * 0.5)) * 0.06
+    shadow.position.y = -group.position.y + 0.03
+  }
+
   function update(dt: number, speed: number): void {
     if (dead) {
       updateDeath(dt)
+      return
+    }
+
+    if (intro) {
+      updateIntro()
       return
     }
 
@@ -525,8 +591,34 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     const scaleY = squash * airStretch * slideSquash
     const scaleXZ = 1 / Math.sqrt(scaleY)
 
+    // ---- Колобок ----
+    const rolling = modifier === MOD_KOLOBOK
+    kolobok.visible = rolling
+    torso.visible = !rolling
+    leftArm.visible = !rolling
+    rightArm.visible = !rolling
+    leftLeg.visible = !rolling
+    rightLeg.visible = !rolling
+    leftShoe.visible = !rolling
+    rightShoe.visible = !rolling
+    head.visible = !rolling
+
+    if (rolling) {
+      roll -= dt * KOLOBOK_SPIN
+      kolobok.rotation.x = roll
+      // Лицо переезжает на шар и катится вместе с ним.
+      headGroup.position.y = KOLOBOK_RADIUS
+      face.position.set(0, 0, KOLOBOK_RADIUS * 0.92)
+      face.scale.setScalar(1.9)
+      face.rotation.x = 0
+    } else {
+      face.position.set(0, 0.01, 0.3)
+      face.scale.setScalar(1)
+    }
+
     pivot.scale.set(scaleXZ * bodyScale, scaleY * bodyScale, scaleXZ * bodyScale)
-    pivot.rotation.x = sliding ? -0.5 : 0
+    pivot.rotation.x = sliding && !rolling ? -0.5 : 0
+    pivot.rotation.y = 0
 
     group.position.y = y
 
@@ -563,6 +655,9 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     grimaceTimer = GRIMACE_GAP_MIN
     grimaceLeft = 0
     modifier = MOD_NONE
+    intro = false
+    introTime = 0
+    roll = 0
     headScale = 1
     bodyScale = 1
     jelly = 0
@@ -572,7 +667,11 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     pivot.rotation.set(0, 0, 0)
     pivot.scale.set(1, 1, 1)
     headGroup.scale.set(1, 1, 1)
+    headGroup.rotation.set(0, 0, 0)
     torso.scale.set(1, 1, 1)
+    kolobok.visible = false
+    face.position.set(0, 0.01, 0.3)
+    face.scale.setScalar(1)
     applyGrimace(GRIMACE_PUFF, 0)
   }
 
@@ -605,6 +704,7 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     requestLane,
     celebrate,
     setModifier,
+    setIntro,
     update,
     die,
     reset,
