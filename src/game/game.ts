@@ -420,9 +420,17 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     if (inPenalty) {
       // Герой отбегает к точке удара. Не телепортируем: видно, как он
       // сходит с трассы, и ребёнок понимает, что происходит.
-      const toX = penalty.playerX
+      const toX = penalty.spotX
       player.group.position.x += (toX - player.group.position.x) * Math.min(1, dt * 3.5)
-      player.group.position.z += (penalty.playerZ - player.group.position.z) * Math.min(1, dt * 3.5)
+      player.group.position.z += (penalty.spotZ - player.group.position.z) * Math.min(1, dt * 3.5)
+
+      // Землетрясение: тряску отдаём той же системе, что и удары.
+      if (penalty.quake > 0) {
+        effects.addShake(penalty.quake * dt * 6)
+        if (Math.random() < 0.5) {
+          effects.emitDust(penalty.spotX + (Math.random() - 0.5) * 8, 0.1, -8, 2)
+        }
+      }
 
       if (penalty.update(dt)) {
         inPenalty = false
@@ -632,7 +640,24 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
     const introT = introLeft > 0 ? Math.min(introLeft / INTRO_DURATION, 1) : 0
     const height = CAMERA_HEIGHT + (INTRO_CAMERA_HEIGHT - CAMERA_HEIGHT) * introT
     const distance2 = CAMERA_DISTANCE + (INTRO_CAMERA_DISTANCE - CAMERA_DISTANCE) * introT
-    const focusX = inPenalty ? penalty.playerX : player.x
+    if (inPenalty) {
+      // Вид от первого лица: камера встаёт на место глаз героя и смотрит
+      // прямо в ворота. Так удар читается как удар, а не как сцена сбоку.
+      camera.position.x += (penalty.spotX - camera.position.x) * Math.min(1, dt * 4)
+      camera.position.y += (penalty.cameraY - camera.position.y) * Math.min(1, dt * 4)
+      camera.position.z += (penalty.cameraZ - camera.position.z) * Math.min(1, dt * 4)
+      lookTarget.set(penalty.spotX, penalty.lookY, -10.5)
+      camera.lookAt(lookTarget)
+      camera.rotation.z += effects.shakeRoll
+      camera.rotation.x += effects.shakePitch
+      if (Math.abs(camera.fov - FOV_BASE) > 0.05) {
+        camera.fov += (FOV_BASE - camera.fov) * Math.min(1, dt * 6)
+        camera.updateProjectionMatrix()
+      }
+      return
+    }
+
+    const focusX = player.x
 
     const targetX = focusX * CAMERA_FOLLOW
     camera.position.x += (targetX - camera.position.x) * Math.min(1, dt * CAMERA_LAG)
@@ -796,9 +821,9 @@ export function createGame(initialCallbacks: GameCallbacks): Game {
 
     // Во время пенальти те же жесты означают направление удара.
     if (inPenalty) {
-      if (action === 'left') penalty.shoot(-1)
-      else if (action === 'right') penalty.shoot(1)
-      else penalty.shoot(0)
+      // Бить можно чем угодно: свайпом в любую сторону или тапом.
+      // Целиться не надо — целится прицел, ребёнок ловит момент.
+      penalty.shoot()
       return
     }
 

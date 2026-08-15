@@ -314,8 +314,8 @@ export const INTRO_DURATION = 3.4
 /** На этой секунде Черемша замечает жест и вскипает. */
 export const INTRO_NOTICE_AT = 1.9
 /** Камера во время интро стоит ближе — лицо должно быть крупно. */
-export const INTRO_CAMERA_DISTANCE = 4.6
-export const INTRO_CAMERA_HEIGHT = 2.5
+export const INTRO_CAMERA_DISTANCE = 3.4
+export const INTRO_CAMERA_HEIGHT = 2.1
 
 // ---------- Колобок ----------
 
@@ -326,8 +326,13 @@ export const KOLOBOK_SPIN = 6.5
 
 // ---------- Пенальти (сила Роналду) ----------
 
-/** Сколько секунд даётся на удар, пока вратарь мечется. */
-export const PENALTY_AIM_TIME = 2.6
+/** Землетрясение и подъём ворот из земли. */
+export const PENALTY_RISE_TIME = 1.5
+/** Сколько секунд даётся на удар, пока ходит прицел. */
+export const PENALTY_AIM_TIME = 4
+/** Скорость хождения прицела вдоль ворот. Быстрее вратаря, но поймать
+ *  промежуток можно — это и есть навык. */
+export const PENALTY_AIM_SPEED = 2.6
 /** Как быстро вратарь ходит вдоль ворот. */
 export const PENALTY_KEEPER_SPEED = 1.9
 /** Полёт мяча до ворот. */

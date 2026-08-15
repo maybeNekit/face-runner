@@ -147,13 +147,35 @@ export function createPlayer(handlers: PlayerHandlers): Player {
   face.visible = false
   headGroup.add(face)
 
+  // Рука = группа-плечо + капсула + ладонь.
+  //
+  // Раньше рука была одной капсулой, и rotation.x крутил её вокруг
+  // СЕРЕДИНЫ — жест почти не читался. Теперь поворот идёт вокруг плеча,
+  // как у настоящей руки, а на конце есть ладонь, по которой глаз
+  // и считывает движение.
   const armGeometry = new THREE.CapsuleGeometry(0.1, 0.42, 3, 6)
-  const leftArm = new THREE.Mesh(armGeometry, skinMaterial)
-  const rightArm = new THREE.Mesh(armGeometry, skinMaterial)
-  leftArm.position.set(-0.42, 1.02, 0)
-  rightArm.position.set(0.42, 1.02, 0)
-  pivot.add(leftArm)
-  pivot.add(rightArm)
+  // Ладонь нарочно крупная: жест читается именно по ней, а на экране
+  // телефона мелкая деталь просто теряется.
+  const palmGeometry = new THREE.BoxGeometry(0.34, 0.1, 0.28)
+
+  function buildArm(side: number): THREE.Group {
+    const shoulder = new THREE.Group()
+    shoulder.position.set(side * 0.42, 1.24, 0)
+
+    const limb = new THREE.Mesh(armGeometry, skinMaterial)
+    limb.position.y = -0.26
+    shoulder.add(limb)
+
+    const palm = new THREE.Mesh(palmGeometry, skinMaterial)
+    palm.position.y = -0.54
+    shoulder.add(palm)
+
+    pivot.add(shoulder)
+    return shoulder
+  }
+
+  const leftArm = buildArm(-1)
+  const rightArm = buildArm(1)
 
   const legGeometry = new THREE.CapsuleGeometry(0.13, 0.44, 3, 6)
   const leftLeg = new THREE.Mesh(legGeometry, pantsMaterial)
@@ -446,14 +468,20 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     pivot.rotation.z = 0
     pivot.scale.set(1, 1, 1)
 
-    // Жест «6-7»: ладони вверх, качаются вразнобой.
-    const wave = introTime * 7
-    leftArm.rotation.x = -1.35
-    rightArm.rotation.x = -1.35
-    leftArm.rotation.z = 0.5
-    rightArm.rotation.z = -0.5
-    leftArm.position.set(-0.52, 1.06 + Math.sin(wave) * 0.16, 0.26)
-    rightArm.position.set(0.52, 1.06 - Math.sin(wave) * 0.16, 0.26)
+    // Жест «6-7»: обе руки согнуты вперёд ладонями вверх и попеременно
+    // качаются, будто взвешивают что-то. Амплитуда нарочно большая —
+    // на маленьком экране мелкое движение просто не видно.
+    const wave = introTime * 5
+    const swing = Math.sin(wave) * 0.8
+
+    // Локти в стороны, предплечья вперёд.
+    leftArm.rotation.set(-1.9 + swing, 0, 0.75)
+    rightArm.rotation.set(-1.9 - swing, 0, -0.75)
+    leftArm.position.set(-0.46, 1.2, 0.1)
+    rightArm.position.set(0.46, 1.2, 0.1)
+
+    // Плечи и голова подхватывают ритм — жест идёт всем телом.
+    pivot.position.y = Math.sin(wave * 2) * 0.03
 
     // Ноги стоят, лёгкое пружинистое покачивание всем телом.
     leftLeg.rotation.x = 0
@@ -463,7 +491,7 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     headGroup.position.y = 1.52 + Math.sin(wave * 0.5) * 0.05
     headGroup.rotation.z = Math.sin(wave * 0.5) * 0.12
 
-    group.position.y = Math.abs(Math.sin(wave * 0.5)) * 0.06
+    group.position.y = Math.abs(Math.sin(wave * 0.5)) * 0.05
     shadow.position.y = -group.position.y + 0.03
   }
 
@@ -565,6 +593,10 @@ export function createPlayer(handlers: PlayerHandlers): Player {
     leftArm.rotation.x = -Math.sin(runPhase) * swing * 0.8
     rightArm.rotation.x = Math.sin(runPhase) * swing * 0.8
 
+    leftArm.position.set(-0.42, 1.24, 0)
+    rightArm.position.set(0.42, 1.24, 0)
+    leftArm.rotation.z = 0
+    rightArm.rotation.z = 0
     leftShoe.position.set(-0.17, 0.16 + Math.sin(runPhase) * 0.1, Math.sin(runPhase) * 0.4)
     rightShoe.position.set(0.17, 0.16 - Math.sin(runPhase) * 0.1, -Math.sin(runPhase) * 0.4)
 
@@ -616,6 +648,7 @@ export function createPlayer(handlers: PlayerHandlers): Player {
       face.scale.setScalar(1)
     }
 
+    pivot.position.y = 0
     pivot.scale.set(scaleXZ * bodyScale, scaleY * bodyScale, scaleXZ * bodyScale)
     pivot.rotation.x = sliding && !rolling ? -0.5 : 0
     pivot.rotation.y = 0
@@ -665,6 +698,7 @@ export function createPlayer(handlers: PlayerHandlers): Player {
 
     group.position.set(LANE_X[1], 0, 0)
     pivot.rotation.set(0, 0, 0)
+    pivot.position.set(0, 0, 0)
     pivot.scale.set(1, 1, 1)
     headGroup.scale.set(1, 1, 1)
     headGroup.rotation.set(0, 0, 0)
